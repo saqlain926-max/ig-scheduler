@@ -340,6 +340,7 @@ const FN = SUPABASE_URL + "/functions/v1";
 const REDIRECT_URI = FN + "/ig-oauth";
 const GRAPH_V = "v24.0";
 const SCOPES = "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,business_management";
+const IG_SCOPES = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_comments";
 const DEFAULT_APP_ID = "1838984617098139", DEFAULT_CONFIG_ID = "28893566230297640";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = (s, r = document) => r.querySelector(s);
@@ -407,7 +408,7 @@ async function loadAll() {
   const [a, p, c] = await Promise.all([
     sb.from("ig_accounts").select("id,ig_user_id,username,name,profile_picture_url,followers_count,media_count,page_id,page_name,color,connected_at,updated_at").order("connected_at"),
     sb.from("ig_posts").select("*").order("scheduled_at", { ascending: true, nullsFirst: false }),
-    sb.from("ig_app_config").select("app_id,config_id").maybeSingle(),
+    sb.from("ig_app_config").select("app_id,config_id,ig_app_id").maybeSingle(),
   ]);
   if (a.error) toast(a.error.message, true);
   S.accounts = a.data || [];
@@ -450,16 +451,24 @@ async function callFn(body) {
 
 /* ---------------- connect ---------------- */
 async function connectInstagram() {
-  if (!S.config?.app_id) { toast("Add your Meta App ID & Secret first", true); S.view = "settings"; return render(); }
+  const useIg = !!S.config?.ig_app_id;
+  if (!useIg && !S.config?.app_id) { toast("Add your Instagram App ID & Secret first", true); S.view = "settings"; return render(); }
   const state = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
-  const { error } = await sb.from("ig_oauth_states").insert({ state, return_url: location.origin + location.pathname });
+  const { error } = await sb.from("ig_oauth_states").insert({ state, return_url: location.origin + location.pathname, provider: useIg ? "instagram" : "facebook" });
   if (error) return toast(error.message, true);
-  const u = new URL(`https://www.facebook.com/${GRAPH_V}/dialog/oauth`);
-  u.searchParams.set("client_id", S.config.app_id);
+  let u;
+  if (useIg) {
+    u = new URL("https://www.instagram.com/oauth/authorize");
+    u.searchParams.set("client_id", S.config.ig_app_id);
+    u.searchParams.set("scope", IG_SCOPES);
+  } else {
+    u = new URL(`https://www.facebook.com/${GRAPH_V}/dialog/oauth`);
+    u.searchParams.set("client_id", S.config.app_id);
+    if (S.config.config_id) u.searchParams.set("config_id", S.config.config_id); else u.searchParams.set("scope", SCOPES);
+  }
   u.searchParams.set("redirect_uri", REDIRECT_URI);
   u.searchParams.set("state", state);
   u.searchParams.set("response_type", "code");
-  if (S.config.config_id) u.searchParams.set("config_id", S.config.config_id); else u.searchParams.set("scope", SCOPES);
   location.href = u.toString();
 }
 $("#sideConnect").onclick = connectInstagram;
@@ -510,7 +519,7 @@ function statsHtml() {
 function onboardingCard() {
   if (S.accounts.length) return "";
   return `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
-    <div><b style="font-size:15px">Connect your first Instagram account</b><div class="muted small" style="margin-top:3px">${S.config ? "Your Meta app is set. Log in with Facebook and pick the Pages linked to your Instagram accounts." : "Start in Settings: add your Meta App ID & Secret (takes about 5 minutes)."}</div></div>
+    <div><b style="font-size:15px">Connect your first Instagram account</b><div class="muted small" style="margin-top:3px">${S.config ? "Your app is set. Click Connect and log in to Instagram." : "Start in Settings: add your Instagram app ID & secret (takes about 5 minutes)."}</div></div>
     <button class="btn ig" onclick="${S.config ? "connectInstagram()" : "S.view='settings';render()"}">${S.config ? "Connect Instagram" : "Open setup"}</button></div>`;
 }
 
@@ -616,7 +625,7 @@ function renderAccounts(v) {
       const up = S.posts.filter((p) => p.account_id === a.id && p.status === "scheduled").length;
       return `<div class="card">
         <div class="acchead">${a.profile_picture_url ? `<img src="${esc(a.profile_picture_url)}">` : `<span class="av" style="width:52px;height:52px;background:var(--grad)"></span>`}
-          <div style="min-width:0;flex:1"><b>@${esc(a.username)}</b><div class="small muted">${esc(a.name || "")} · Page: ${esc(a.page_name || "—")}</div></div></div>
+          <div style="min-width:0;flex:1"><b>@${esc(a.username)}</b><div class="small muted">${esc(a.name || "")} · ${a.page_name ? "Page: " + esc(a.page_name) : "Instagram login"}</div></div></div>
         <div class="nums"><div><b>${fmtN(a.followers_count)}</b><span>followers</span></div><div><b>${fmtN(a.media_count)}</b><span>posts</span></div><div><b>${up}</b><span>scheduled</span></div>${q ? `<div><b>${q.quota_usage}/${q.config?.quota_total || 100}</b><span>API posts 24h</span></div>` : ""}</div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <span class="small muted">Label colour</span>
@@ -629,8 +638,8 @@ function renderAccounts(v) {
         </div>
         <div class="igrid" id="ig-${a.id}"></div>
       </div>`;
-    }).join("")}</div>` : `<div class="empty"><h3>No Instagram accounts connected</h3><p>Click <b>Connect Instagram accounts</b>, log in with the Facebook profile that manages your clients' Pages, and select every Page/Instagram account you want here. All of them are added in one go.</p></div>`}
-    <p class="small muted" style="margin-top:16px">To add more accounts later, click Connect again and tick the extra Pages. Existing accounts stay connected.</p>`;
+    }).join("")}</div>` : `<div class="empty"><h3>No Instagram accounts connected</h3><p>Click <b>Connect Instagram accounts</b>, log in to the Instagram account and allow access. Repeat for each account you manage (log out of Instagram in between to switch accounts).</p></div>`}
+    <p class="small muted" style="margin-top:16px">To add another account, log out of Instagram in this browser, click Connect again and log in with the other account. Existing accounts stay connected.</p>`;
   $("#conn").onclick = connectInstagram;
   $("#refresh").onclick = async (e) => {
     e.target.disabled = true; e.target.textContent = "Refreshing…";
@@ -666,40 +675,39 @@ function renderAccounts(v) {
 function renderSettings(v) {
   v.innerHTML = `<div class="two">
     <div class="card">
-      <h3 style="margin-top:0">One-time setup: your Meta app</h3>
+      <h3 style="margin-top:0">One-time setup: Instagram login</h3>
+      <p class="muted" style="margin-top:0">Works with Instagram Business or Creator accounts. No Facebook Page needed.</p>
       <ol class="steps" style="padding:0;margin:0">
-        <li><div>Go to <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener"><b>developers.facebook.com/apps</b></a> → <b>Create app</b>. Choose the <b>Other</b> use case → app type <b>Business</b>, and connect it to your Business portfolio.</div></li>
-        <li><div>In the app dashboard, add the products <b>Facebook Login for Business</b> and <b>Instagram</b> (choose <i>API setup with Facebook login</i>).</div></li>
-        <li><div>Open <b>Facebook Login for Business → Settings</b> and paste this into <b>Valid OAuth Redirect URIs</b>, then save:
+        <li><div>Open your <a href="https://developers.facebook.com/apps/${DEFAULT_APP_ID}/use_cases/" target="_blank" rel="noopener"><b>Social Poster app → Use cases</b></a> → Instagram API → <b>Customize</b> → <b>API setup with Instagram login</b>.</div></li>
+        <li><div>Under <b>Set up Instagram business login</b>, add this as the <b>OAuth redirect URI</b> and save:
           <div class="copyrow" style="margin-top:6px"><input class="inp" readonly value="${REDIRECT_URI}" id="ru"><button class="btn" onclick="navigator.clipboard.writeText($('#ru').value);toast('Copied')">Copy</button></div></div></li>
-        <li><div>Go to <b>App settings → Basic</b>. Add <code>${esc(location.hostname || "your-portal-domain")}</code> under <b>App domains</b>, set a Privacy Policy URL, then copy the <b>App ID</b> and <b>App Secret</b> into the form on the right.</div></li>
-        <li><div>While the app is in <b>Development</b> mode it works for you as the app admin, with every Page you manage. Make sure each client's Instagram is a <b>Business/Creator</b> account linked to a Facebook Page where you have full control.</div></li>
-        <li><div>Click <b>Connect Instagram</b>, log in, and tick <b>all</b> the Pages and Instagram accounts you want. Done.</div></li>
+        <li><div>On the same page, copy the <b>Instagram app ID</b> and <b>Instagram app secret</b> into the form on the right and save.</div></li>
+        <li><div>Under <b>Generate access tokens → Add account</b> (or App roles → Instagram Testers), add your Instagram account, then accept the invite in Instagram: Settings → Apps and websites → Tester invites.</div></li>
+        <li><div>Click <b>Connect Instagram</b>, log in to Instagram and allow access. Done.</div></li>
       </ol>
     </div>
     <div style="display:flex;flex-direction:column;gap:18px">
       <form class="card" id="cfgForm" style="display:flex;flex-direction:column;gap:12px">
-        <h3 style="margin:0">Meta app credentials ${S.config ? '<span class="pill published" style="vertical-align:middle">Saved</span>' : ""}</h3>
-        <div class="field"><label>App ID</label><input class="inp" id="appId" required value="${esc(S.config?.app_id || DEFAULT_APP_ID)}" placeholder="e.g. 1234567890123456"></div>
-        <div class="field"><label>Login configuration ID</label><input class="inp" id="cfgId" value="${esc(S.config?.config_id || DEFAULT_CONFIG_ID)}" placeholder="From Facebook Login for Business → Configurations"></div>
-        <div class="field"><label>App Secret</label><input class="inp" id="appSecret" type="password" ${S.config ? "" : "required"} placeholder="${S.config ? "•••••••• (saved — leave blank to keep)" : "Paste your app secret"}"></div>
-        <div style="display:flex;gap:8px"><button class="btn pri" type="submit">Save</button>${S.config ? '<button class="btn ig" type="button" onclick="connectInstagram()">Connect Instagram</button>' : ""}</div>
-        <p class="small muted" style="margin:0">Stored in your private database and only used by your server to log in with Facebook.</p>
+        <h3 style="margin:0">Instagram app credentials ${S.config?.ig_app_id ? '<span class="pill published" style="vertical-align:middle">Saved</span>' : ""}</h3>
+        <div class="field"><label>Instagram app ID</label><input class="inp" id="igAppId" required value="${esc(S.config?.ig_app_id || "")}" placeholder="From API setup with Instagram login"></div>
+        <div class="field"><label>Instagram app secret</label><input class="inp" id="igAppSecret" type="password" ${S.config?.ig_app_id ? "" : "required"} placeholder="${S.config?.ig_app_id ? "•••••••• (saved — leave blank to keep)" : "Paste your Instagram app secret"}"></div>
+        <div style="display:flex;gap:8px"><button class="btn pri" type="submit">Save</button>${S.config?.ig_app_id ? '<button class="btn ig" type="button" onclick="connectInstagram()">Connect Instagram</button>' : ""}</div>
+        <p class="small muted" style="margin:0">Stored in your private database and only used by your server to log in to Instagram.</p>
       </form>
       <div class="card">
         <h3 style="margin-top:0">How publishing works</h3>
-        <p class="muted" style="line-height:1.6;margin:0">A background job checks every minute and publishes anything that is due, so your computer can be off. Images are converted to JPEG automatically (Instagram's requirement). Reels and video stories take Instagram a minute or two to process before they go live. Instagram allows about 100 API posts per account per 24 hours.</p>
+        <p class="muted" style="line-height:1.6;margin:0">A background job checks every minute and publishes anything that is due, so your computer can be off. Images are converted to JPEG automatically (Instagram's requirement). Reels and video stories take Instagram a minute or two to process. Login tokens renew automatically. Instagram allows about 100 API posts per account per 24 hours.</p>
         <p class="small muted" style="margin-bottom:0">Times use your device's timezone: <b>${esc(TZ)}</b>.</p>
       </div>
     </div></div>`;
   $("#cfgForm").onsubmit = async (e) => {
     e.preventDefault();
-    const app_id = $("#appId").value.trim(), app_secret = $("#appSecret").value.trim(), config_id = $("#cfgId").value.trim() || null;
-    let r;
-    if (S.config && !app_secret) r = await sb.from("ig_app_config").update({ app_id, config_id, updated_at: new Date().toISOString() }).eq("owner_id", S.user.id);
-    else r = await sb.from("ig_app_config").upsert({ owner_id: S.user.id, app_id, app_secret, config_id, updated_at: new Date().toISOString() });
+    const ig_app_id = $("#igAppId").value.trim(), ig_app_secret = $("#igAppSecret").value.trim();
+    const row = { owner_id: S.user.id, ig_app_id, updated_at: new Date().toISOString() };
+    if (ig_app_secret) row.ig_app_secret = ig_app_secret;
+    const r = S.config ? await sb.from("ig_app_config").update(row).eq("owner_id", S.user.id) : await sb.from("ig_app_config").insert(row);
     if (r.error) return toast(r.error.message.includes("row-level") ? "This account isn't allowed to use the portal." : r.error.message, true);
-    S.config = { app_id, config_id }; toast("Saved"); render();
+    S.config = { ...(S.config || {}), ig_app_id }; toast("Saved"); render();
   };
 }
 
