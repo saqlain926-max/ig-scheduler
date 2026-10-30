@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trendhive Scheduler — Instagram</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f6f5f2;--panel:#fff;--ink:#16151a;--ink2:#5d5a66;--ink3:#9a97a3;--line:#e8e6e1;
+  --side:#121116;--side2:#1d1b22;--sideink:#e9e7ee;--sideink2:#8f8b99;
+  --brand:#e1306c;--brand2:#833ab4;--ok:#16a34a;--warn:#d97706;--bad:#dc2626;--info:#2563eb;
+  --grad:linear-gradient(135deg,#feda75 0%,#fa7e1e 25%,#d62976 55%,#962fbf 80%,#4f5bd5 100%);
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:14px}
+button{font:inherit;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+a{color:inherit}
+
+/* auth */
+#auth{min-height:100%;display:grid;grid-template-columns:1.1fr 1fr}
+#auth .art{background:var(--side);color:#fff;padding:56px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+#auth .art:before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;background:var(--grad);filter:blur(90px);opacity:.45;right:-160px;bottom:-160px}
+#auth .art h1{font-size:46px;line-height:1.05;margin:0;letter-spacing:-.02em;position:relative;max-width:520px}
+#auth .art p{color:#bdb9c7;max-width:420px;position:relative;font-size:15px;line-height:1.6}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.01em;position:relative}
+.logo i{width:30px;height:30px;border-radius:9px;background:var(--grad);display:inline-block}
+#auth form{align-self:center;justify-self:center;width:min(380px,90%);display:flex;flex-direction:column;gap:12px}
+#auth h2{margin:0 0 4px;font-size:24px}
+.muted{color:var(--ink2)}
+.small{font-size:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;font-weight:600;color:var(--ink2)}
+.inp{border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;outline:none;width:100%}
+.inp:focus{border-color:#c9c5bd;box-shadow:0 0 0 3px #e1306c1a}
+.btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 14px;font-weight:600;display:inline-flex;align-items:center;gap:8px;justify-content:center;white-space:nowrap}
+.btn:hover{background:#faf9f7}
+.btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.pri:hover{background:#2a2830}
+.btn.ig{background:var(--grad);color:#fff;border:0}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger{color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.link{background:none;border:0;color:var(--brand);font-weight:600;padding:0}
+
+/* app layout */
+#app{display:grid;grid-template-columns:260px 1fr;height:100%}
+aside{background:var(--side);color:var(--sideink);display:flex;flex-direction:column;padding:20px 14px;gap:18px;overflow:auto}
+aside .logo{padding:0 8px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{background:none;border:0;color:var(--sideink2);text-align:left;padding:9px 10px;border-radius:9px;display:flex;gap:10px;align-items:center;font-weight:600}
+.nav button:hover{background:var(--side2);color:var(--sideink)}
+.nav button.on{background:var(--side2);color:#fff}
+.nav svg{width:17px;height:17px;flex:none}
+.sec{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sideink2);padding:0 10px;display:flex;justify-content:space-between;align-items:center}
+.acct{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+.acct:hover{background:var(--side2)}
+.acct.on{background:var(--side2);border-color:#2c2932}
+.acct img,.av{width:30px;height:30px;border-radius:50%;object-fit:cover;background:#2c2932;flex:none}
+.acct .n{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct .s{font-size:11px;color:var(--sideink2)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.side-foot .btn{background:var(--side2);border-color:#2c2932;color:var(--sideink)}
+main{overflow:auto;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;padding:22px 32px 6px;gap:16px;flex-wrap:wrap}
+.top h1{margin:0;font-size:24px;letter-spacing:-.02em}
+.top .r{display:flex;gap:8px;align-items:center}
+.view{padding:16px 32px 40px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.stat b{font-size:24px;display:block;letter-spacing:-.02em}
+.stat span{font-size:12px;color:var(--ink2);font-weight:600}
+
+/* calendar */
+.calhead{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.calhead h3{margin:0 8px;font-size:17px;min-width:150px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.cal .dow{padding:9px 10px;font-size:11px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--line)}
+.cal .day{min-height:116px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;display:flex;flex-direction:column;gap:4px;cursor:pointer;position:relative}
+.cal .day:nth-child(7n){border-right:0}
+.cal .day:hover{background:#fcfbf9}
+.cal .day .d{font-size:12px;font-weight:700;color:var(--ink2);padding:2px 4px}
+.cal .day.out{background:#fbfaf8}.cal .day.out .d{color:var(--ink3)}
+.cal .day.today .d{background:var(--ink);color:#fff;border-radius:6px;display:inline-block;width:max-content}
+.cal .day .add{position:absolute;right:6px;top:6px;opacity:0;font-size:16px;color:var(--ink3)}
+.cal .day:hover .add{opacity:1}
+.chip{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:7px;font-size:11px;font-weight:600;background:#f3f1ee;overflow:hidden;white-space:nowrap;cursor:pointer;border-left:3px solid var(--c,#999)}
+.chip:hover{background:#ebe8e3}
+.chip img{width:18px;height:18px;border-radius:4px;object-fit:cover;flex:none}
+.chip .t{overflow:hidden;text-overflow:ellipsis}
+.chip.published{opacity:.6}
+.chip.failed{background:#fdecec}
+
+/* queue */
+.tabs{display:flex;gap:4px;background:#eceae5;padding:4px;border-radius:11px;width:max-content;margin-bottom:14px}
+.tabs button{border:0;background:none;padding:7px 14px;border-radius:8px;font-weight:600;color:var(--ink2)}
+.tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px #0001}
+.tabs .cnt{font-size:11px;color:var(--ink3);margin-left:4px}
+.list{display:flex;flex-direction:column;gap:10px}
+.row{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:76px 1fr auto;gap:14px;align-items:center}
+.thumb{width:76px;height:76px;border-radius:10px;object-fit:cover;background:#eee;display:block}
+.thumbw{position:relative}
+.thumbw .badge{position:absolute;right:4px;top:4px;background:#000a;color:#fff;font-size:10px;border-radius:5px;padding:1px 5px;font-weight:700}
+.row .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin-bottom:5px}
+.row .cap{font-size:13px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.row .err{color:var(--bad);font-size:12px;margin-top:4px}
+.row .acts{display:flex;gap:6px}
+.pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;text-transform:capitalize}
+.pill.draft{background:#eee;color:#555}
+.pill.scheduled{background:#e8efff;color:var(--info)}
+.pill.processing{background:#fff4e0;color:var(--warn)}
+.pill.published{background:#e6f6ec;color:var(--ok)}
+.pill.failed{background:#fdecec;color:var(--bad)}
+.type{font-size:11px;font-weight:700;color:var(--ink2);background:#f3f1ee;border-radius:6px;padding:2px 7px;text-transform:uppercase;letter-spacing:.04em}
+.empty{padding:50px;text-align:center;color:var(--ink2);background:var(--panel);border:1px dashed var(--line);border-radius:var(--r)}
+.empty h3{color:var(--ink);margin:0 0 6px}
+
+/* accounts */
+.grid-acc{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+.acchead{display:flex;gap:12px;align-items:center}
+.acchead img{width:52px;height:52px;border-radius:50%;object-fit:cover;padding:2px;background:var(--grad)}
+.acchead b{font-size:15px}
+.nums{display:flex;gap:18px;margin:14px 0}
+.nums div b{display:block;font-size:17px}
+.nums div span{font-size:11px;color:var(--ink2)}
+.igrid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:12px}
+.igrid a{aspect-ratio:1;display:block;background:#eee center/cover;border-radius:3px}
+
+/* settings */
+.steps{counter-reset:s;display:flex;flex-direction:column;gap:12px}
+.steps li{list-style:none;counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:10px;line-height:1.55}
+.steps li:before{content:counter(s);width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:#f3f1ee;border-radius:6px;padding:2px 6px;word-break:break-all}
+.copyrow{display:flex;gap:8px;align-items:center}
+.copyrow .inp{font-family:ui-monospace,monospace;font-size:12px;background:#faf9f7}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+
+/* composer */
+.modal{position:fixed;inset:0;background:#16151a80;backdrop-filter:blur(4px);display:grid;place-items:center;z-index:50;padding:20px}
+.sheet{background:var(--bg);border-radius:20px;width:min(1080px,100%);max-height:94vh;display:grid;grid-template-columns:1fr 340px;overflow:hidden;box-shadow:0 30px 80px #0005}
+.sheet .l{max-height:94vh;padding:22px 24px 0;overflow:auto;display:flex;flex-direction:column;gap:16px}
+.sheet .rp{max-height:94vh;background:#ecebe7;padding:22px;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:10px}
+.sheet h2{margin:0;font-size:20px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 13px;font-weight:600;display:flex;gap:7px;align-items:center}
+.seg button.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.accpick{display:flex;gap:8px;flex-wrap:wrap}
+.accpick label{display:flex;gap:8px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 12px 4px 4px;cursor:pointer;font-weight:600;font-size:13px}
+.accpick input{display:none}
+.accpick label:has(input:checked){border-color:var(--brand);box-shadow:0 0 0 3px #e1306c22}
+.accpick img,.accpick .av{width:26px;height:26px}
+.drop{border:2px dashed #d6d2ca;border-radius:var(--r);background:#fff;padding:18px;text-align:center;color:var(--ink2);cursor:pointer}
+.drop.over{border-color:var(--brand);background:#fff5f8}
+.mlist{display:flex;gap:8px;flex-wrap:wrap}
+.mitem{position:relative;width:88px;height:88px;border-radius:10px;overflow:hidden;background:#ddd}
+.mitem img,.mitem video{width:100%;height:100%;object-fit:cover}
+.mitem .x{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;border:0;background:#000b;color:#fff;font-size:13px;line-height:1}
+.mitem .mv{position:absolute;bottom:4px;left:4px;display:flex;gap:2px}
+.mitem .mv button{border:0;background:#000b;color:#fff;border-radius:5px;font-size:10px;padding:1px 5px}
+.mitem .up{position:absolute;inset:0;background:#fffc;display:grid;place-items:center;font-size:11px;font-weight:700}
+.capwrap{position:relative}
+.capwrap textarea{min-height:140px;resize:vertical;line-height:1.5}
+.counter{display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-top:4px}
+.counter .over{color:var(--bad);font-weight:700}
+.warn{background:#fff6e6;border:1px solid #f6dfb3;color:#8a5a00;border-radius:10px;padding:9px 12px;font-size:12px;line-height:1.5}
+.when{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.when .inp{width:auto}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.quick button{border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--ink2)}
+.foot{display:flex;gap:8px;justify-content:space-between;align-items:center;padding:12px 0 18px;position:sticky;bottom:0;z-index:2;background:var(--bg);border-top:1px solid var(--line);margin-top:auto;flex-wrap:wrap}
+
+/* phone preview */
+.phone{width:290px;background:#fff;border-radius:30px;padding:10px;box-shadow:0 18px 40px #0002;border:7px solid #111}
+.phone .ph{display:flex;align-items:center;gap:8px;padding:6px 4px 10px;font-weight:700;font-size:12px}
+.phone .ph .av{width:26px;height:26px;background:var(--grad)}
+.phone .ph img{width:26px;height:26px;border-radius:50%}
+.pvm{width:100%;aspect-ratio:4/5;background:#f0f0f0 center/cover;border-radius:4px;position:relative;overflow:hidden;display:grid;place-items:center;color:#aaa;font-size:12px}
+.pvm img,.pvm video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.pvm.tall{aspect-ratio:9/16}
+.pvm .dots{position:absolute;bottom:8px;left:0;right:0;display:flex;justify-content:center;gap:4px}
+.pvm .dots i{width:5px;height:5px;border-radius:50%;background:#fff8}
+.pvm .dots i.on{background:var(--info)}
+.pvicons{display:flex;gap:12px;padding:9px 2px 5px;font-size:18px}
+.pvcap{font-size:12px;line-height:1.45;padding:0 2px 8px;white-space:pre-wrap;word-break:break-word;max-height:150px;overflow:hidden}
+.pvcap b{margin-right:4px}
+.pvcap .h{color:#00376b}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-weight:600;z-index:99;box-shadow:0 10px 30px #0003;max-width:90vw}
+.toast.bad{background:var(--bad)}
+.spin{width:14px;height:14px;border:2px solid #fff6;border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+@media (max-width:900px){
+  #auth{grid-template-columns:1fr}#auth .art{display:none}
+  #app{grid-template-columns:1fr}aside{display:none}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .sheet{grid-template-columns:1fr}.sheet .rp{display:none}
+  .two{grid-template-columns:1fr}
+  .top,.view{padding-left:16px;padding-right:16px}
+  .row{grid-template-columns:60px 1fr}.row .acts{grid-column:1/-1}
+  .thumb{width:60px;height:60px}
+  .cal .day{min-height:70px}
+  #mnav{display:flex!important}
+}
+#mnav{display:none;gap:6px;overflow:auto;padding:12px 16px 0}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<section id="auth" class="hidden">
+  <div class="art">
+    <div class="logo"><i></i>Trendhive Scheduler</div>
+    <div>
+      <h1>Plan once. Post on time, across every account.</h1>
+      <p>Connect your clients' Instagram accounts, drop in posts, carousels, reels and stories, and the portal publishes them at the exact minute you choose, even while your laptop is closed.</p>
+    </div>
+    <p class="small">Private workspace · Instagram Graph API</p>
+  </div>
+  <form id="authForm">
+    <h2 id="authTitle">Sign in</h2>
+    <p class="muted" style="margin:0 0 6px">Your private Instagram scheduling workspace.</p>
+    <div class="field"><label>Email</label><input class="inp" id="email" type="email" required autocomplete="email"></div>
+    <div class="field"><label>Password</label><input class="inp" id="password" type="password" minlength="6" required autocomplete="current-password"></div>
+    <button class="btn pri" id="authBtn" type="submit">Sign in</button>
+    <p class="small muted" id="authSwitch">First time here? <button type="button" class="link" id="toSignup">Create your account</button></p>
+    <p class="small" id="authMsg"></p>
+  </form>
+</section>
+
+<!-- APP -->
+<section id="app" class="hidden">
+  <aside>
+    <div class="logo"><i></i>Trendhive Scheduler</div>
+    <nav class="nav" id="nav">
+      <button data-v="calendar" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Calendar</button>
+      <button data-v="queue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Posts</button>
+      <button data-v="accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>Accounts</button>
+      <button data-v="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings & setup</button>
+    </nav>
+    <div>
+      <div class="sec"><span>Accounts</span><button class="link small" id="sideConnect" style="color:#f08aae">+ Connect</button></div>
+      <div id="sideAccts" style="display:flex;flex-direction:column;gap:2px;margin-top:8px"></div>
+    </div>
+    <div class="side-foot">
+      <button class="btn ig" id="newBtn2">+ New post</button>
+      <button class="btn" id="signOut">Sign out</button>
+    </div>
+  </aside>
+  <main>
+    <div id="mnav"></div>
+    <div class="top">
+      <h1 id="vTitle">Calendar</h1>
+      <div class="r">
+        <select class="inp" id="acctFilter" style="width:auto"></select>
+        <button class="btn ig" id="newBtn">+ New post</button>
+      </div>
+    </div>
+    <div class="view" id="view"></div>
+  </main>
+</section>
+
+<!-- COMPOSER -->
+<div class="modal hidden" id="composer">
+  <div class="sheet">
+    <div class="l">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2 id="cTitle">New post</h2>
+        <button class="btn ghost" id="cClose">✕</button>
+      </div>
+      <div class="field"><label>Post to</label><div class="accpick" id="cAccts"></div></div>
+      <div class="field"><label>Format</label>
+        <div class="seg" id="cType">
+          <button data-t="image">▢ Post</button>
+          <button data-t="carousel">❐ Carousel</button>
+          <button data-t="reel">▶ Reel</button>
+          <button data-t="story">◔ Story</button>
+        </div>
+      </div>
+      <div class="field">
+        <label id="mLabel">Media</label>
+        <div class="drop" id="drop">Drop images or videos here, or <b style="color:var(--brand)">browse</b><br><span class="small" id="dropHint"></span></div>
+        <input type="file" id="file" multiple accept="image/*,video/mp4,video/quicktime" hidden>
+        <div class="mlist" id="mlist"></div>
+        <div id="mwarn"></div>
+      </div>
+      <div class="field" id="capField">
+        <label>Caption</label>
+        <div class="capwrap"><textarea class="inp" id="caption" placeholder="Write a caption… #hashtags @mentions"></textarea></div>
+        <div class="counter"><span id="hashCnt">0 / 30 hashtags</span><span id="charCnt">0 / 2200</span></div>
+      </div>
+      <div class="field" id="fcField">
+        <label>First comment <span class="muted" style="font-weight:400">(optional, great for hashtags)</span></label>
+        <input class="inp" id="firstComment" placeholder="Posted as a comment right after publishing">
+      </div>
+      <div class="field">
+        <label>When <span class="muted" style="font-weight:400" id="tzLbl"></span></label>
+        <div class="when">
+          <input type="date" class="inp" id="cDate">
+          <input type="time" class="inp" id="cTime">
+        </div>
+        <div class="quick" id="quick"></div>
+      </div>
+      <div class="foot">
+        <button class="btn danger" id="cDelete">Delete</button>
+        <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+          <button class="btn" id="cDraft">Save draft</button>
+          <button class="btn" id="cNow">Publish now</button>
+          <button class="btn pri" id="cSchedule">Schedule</button>
+        </div>
+      </div>
+    </div>
+    <div class="rp">
+      <div class="small muted" style="font-weight:700;letter-spacing:.06em;text-transform:uppercase">Preview</div>
+      <div class="phone">
+        <div class="ph" id="pvHead"><span class="av"></span><span>your_account</span></div>
+        <div class="pvm" id="pvMedia">Add media to preview</div>
+        <div id="pvBelow">
+          <div class="pvicons">♡ 💬 ➤</div>
+          <div class="pvcap" id="pvCap"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://suzdbupzgyynxfrjjsfv.supabase.co";
+const SUPABASE_KEY = "sb_publishable_TcLqLrx7Pquh8Ofi1eBE1A_wzMDyCfM";
+const FN = SUPABASE_URL + "/functions/v1";
+const REDIRECT_URI = FN + "/ig-oauth";
+const GRAPH_V = "v24.0";
+const SCOPES = "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,business_management";
+const DEFAULT_APP_ID = "1838984617098139", DEFAULT_CONFIG_ID = "28893566230297640";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const COLORS = ["#e1306c", "#f77737", "#833ab4", "#2563eb", "#059669", "#d97706", "#0891b2", "#be185d", "#4f46e5", "#65a30d"];
+
+const S = { user: null, accounts: [], posts: [], config: null, view: "calendar", filter: "all", month: new Date(), qtab: "scheduled", quotas: {} };
+
+function toast(msg, bad = false) {
+  const t = document.createElement("div");
+  t.className = "toast" + (bad ? " bad" : "");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), bad ? 6000 : 3000);
+}
+const fmtDT = (d) => new Date(d).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+const fmtN = (n) => n == null ? "—" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e4 ? (n / 1e3).toFixed(1) + "K" : n.toLocaleString();
+const acct = (id) => S.accounts.find((a) => a.id === id);
+const acctColor = (a) => a?.color || "#e1306c";
+const avatar = (a, cls = "") => a?.profile_picture_url ? `<img class="${cls}" src="${esc(a.profile_picture_url)}" alt="">` : `<span class="av ${cls}" style="background:${acctColor(a)}"></span>`;
+const firstMedia = (p) => (p.media || [])[0];
+const thumbOf = (p) => { const m = firstMedia(p); return m ? (m.thumb || m.url) : ""; };
+const TYPE_LBL = { image: "Post", carousel: "Carousel", reel: "Reel", story: "Story" };
+
+/* ---------------- auth ---------------- */
+let signupMode = false;
+function toggleSignup() {
+  signupMode = !signupMode;
+  $("#authTitle").textContent = signupMode ? "Create your account" : "Sign in";
+  $("#authBtn").textContent = signupMode ? "Create account" : "Sign in";
+  $("#authSwitch").innerHTML = signupMode
+    ? 'Already have an account? <button type="button" class="link" id="toSignup">Sign in</button>'
+    : 'First time here? <button type="button" class="link" id="toSignup">Create your account</button>';
+  $("#toSignup").onclick = toggleSignup;
+}
+$("#toSignup").onclick = toggleSignup;
+$("#authForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const email = $("#email").value.trim(), password = $("#password").value;
+  $("#authBtn").disabled = true; $("#authMsg").textContent = "";
+  const r = signupMode
+    ? await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } })
+    : await sb.auth.signInWithPassword({ email, password });
+  $("#authBtn").disabled = false;
+  if (r.error) { $("#authMsg").style.color = "var(--bad)"; $("#authMsg").textContent = r.error.message; return; }
+  if (signupMode && !r.data.session) {
+    $("#authMsg").style.color = "var(--ok)";
+    $("#authMsg").textContent = "Account created. Check your inbox for the confirmation email, click the link, then sign in here.";
+  }
+};
+$("#signOut").onclick = () => { clearInterval(S.poll); sb.auth.signOut(); };
+
+sb.auth.onAuthStateChange((_e, session) => {
+  const u = session?.user || null;
+  if (u?.id === S.user?.id) return;
+  S.user = u;
+  $("#auth").classList.toggle("hidden", !!u);
+  $("#app").classList.toggle("hidden", !u);
+  if (u) boot();
+});
+
+/* ---------------- data ---------------- */
+async function loadAll() {
+  const [a, p, c] = await Promise.all([
+    sb.from("ig_accounts").select("id,ig_user_id,username,name,profile_picture_url,followers_count,media_count,page_id,page_name,color,connected_at,updated_at").order("connected_at"),
+    sb.from("ig_posts").select("*").order("scheduled_at", { ascending: true, nullsFirst: false }),
+    sb.from("ig_app_config").select("app_id,config_id").maybeSingle(),
+  ]);
+  if (a.error) toast(a.error.message, true);
+  S.accounts = a.data || [];
+  S.posts = p.data || [];
+  S.config = c.data || null;
+}
+async function boot() {
+  handleOAuthReturn();
+  await loadAll();
+  if (!S.config) S.view = "settings";
+  render();
+  clearInterval(S.poll);
+  S.poll = setInterval(async () => {
+    const r = await sb.from("ig_posts").select("*").order("scheduled_at", { ascending: true, nullsFirst: false });
+    if (!r.error) {
+      const changed = JSON.stringify(r.data) !== JSON.stringify(S.posts);
+      S.posts = r.data;
+      if (changed && $("#composer").classList.contains("hidden")) renderView();
+    }
+  }, 20000);
+}
+function handleOAuthReturn() {
+  if (!location.hash) return;
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (h.get("connected")) toast(`Connected ${h.get("connected")} Instagram account(s) 🎉`);
+  if (h.get("ig_error")) toast("Instagram: " + h.get("ig_error"), true);
+  if (h.get("connected") || h.get("ig_error")) { history.replaceState(null, "", location.pathname); S.view = "accounts"; }
+}
+async function callFn(body) {
+  const { data: { session } } = await sb.auth.getSession();
+  const r = await fetch(FN + "/ig-publish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token, apikey: SUPABASE_KEY },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({ error: "Network error" }));
+  if (!r.ok || j.error) throw new Error(j.error || "Request failed");
+  return j;
+}
+
+/* ---------------- connect ---------------- */
+async function connectInstagram() {
+  if (!S.config?.app_id) { toast("Add your Meta App ID & Secret first", true); S.view = "settings"; return render(); }
+  const state = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+  const { error } = await sb.from("ig_oauth_states").insert({ state, return_url: location.origin + location.pathname });
+  if (error) return toast(error.message, true);
+  const u = new URL(`https://www.facebook.com/${GRAPH_V}/dialog/oauth`);
+  u.searchParams.set("client_id", S.config.app_id);
+  u.searchParams.set("redirect_uri", REDIRECT_URI);
+  u.searchParams.set("state", state);
+  u.searchParams.set("response_type", "code");
+  if (S.config.config_id) u.searchParams.set("config_id", S.config.config_id); else u.searchParams.set("scope", SCOPES);
+  location.href = u.toString();
+}
+$("#sideConnect").onclick = connectInstagram;
+
+/* ---------------- render shell ---------------- */
+const TITLES = { calendar: "Calendar", queue: "Posts", accounts: "Accounts", settings: "Settings & setup" };
+document.querySelectorAll("#nav button").forEach((b) => b.onclick = () => { S.view = b.dataset.v; render(); });
+$("#acctFilter").onchange = (e) => { S.filter = e.target.value; render(); };
+$("#newBtn").onclick = $("#newBtn2").onclick = () => openComposer();
+
+function render() {
+  document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.v === S.view));
+  $("#mnav").innerHTML = Object.entries(TITLES).map(([k, v]) => `<button class="btn ${k === S.view ? "pri" : ""}" data-v="${k}">${v}</button>`).join("");
+  $("#mnav").querySelectorAll("button").forEach((b) => b.onclick = () => { S.view = b.dataset.v; render(); });
+  $("#vTitle").textContent = TITLES[S.view];
+  $("#acctFilter").innerHTML = `<option value="all">All accounts</option>` + S.accounts.map((a) => `<option value="${a.id}" ${S.filter === a.id ? "selected" : ""}>@${esc(a.username)}</option>`).join("");
+  $("#acctFilter").style.display = (S.view === "calendar" || S.view === "queue") && S.accounts.length ? "" : "none";
+  $("#sideAccts").innerHTML = S.accounts.length
+    ? S.accounts.map((a) => `<div class="acct ${S.filter === a.id ? "on" : ""}" data-id="${a.id}">${avatar(a)}<div style="min-width:0;flex:1"><div class="n">@${esc(a.username)}</div><div class="s">${fmtN(a.followers_count)} followers</div></div><span class="dot" style="background:${acctColor(a)}"></span></div>`).join("")
+    : `<div class="small" style="color:var(--sideink2);padding:4px 10px">No accounts yet</div>`;
+  $("#sideAccts").querySelectorAll(".acct").forEach((el) => el.onclick = () => {
+    S.filter = S.filter === el.dataset.id ? "all" : el.dataset.id;
+    if (S.view !== "calendar" && S.view !== "queue") S.view = "calendar";
+    render();
+  });
+  renderView();
+}
+const visiblePosts = () => S.posts.filter((p) => S.filter === "all" || p.account_id === S.filter);
+
+function renderView() {
+  const v = $("#view");
+  if (S.view === "calendar") return renderCalendar(v);
+  if (S.view === "queue") return renderQueue(v);
+  if (S.view === "accounts") return renderAccounts(v);
+  if (S.view === "settings") return renderSettings(v);
+}
+
+function statsHtml() {
+  const ps = visiblePosts(), now = Date.now(), wk = now + 7 * 864e5;
+  const c = (f) => ps.filter(f).length;
+  return `<div class="stats">
+    <div class="stat"><span>Scheduled</span><b>${c((p) => p.status === "scheduled" || p.status === "processing")}</b></div>
+    <div class="stat"><span>Next 7 days</span><b>${c((p) => p.status === "scheduled" && new Date(p.scheduled_at) < wk)}</b></div>
+    <div class="stat"><span>Published</span><b>${c((p) => p.status === "published")}</b></div>
+    <div class="stat"><span>Needs attention</span><b style="color:${c((p) => p.status === "failed") ? "var(--bad)" : "inherit"}">${c((p) => p.status === "failed")}</b></div>
+  </div>`;
+}
+function onboardingCard() {
+  if (S.accounts.length) return "";
+  return `<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+    <div><b style="font-size:15px">Connect your first Instagram account</b><div class="muted small" style="margin-top:3px">${S.config ? "Your Meta app is set. Log in with Facebook and pick the Pages linked to your Instagram accounts." : "Start in Settings: add your Meta App ID & Secret (takes about 5 minutes)."}</div></div>
+    <button class="btn ig" onclick="${S.config ? "connectInstagram()" : "S.view='settings';render()"}">${S.config ? "Connect Instagram" : "Open setup"}</button></div>`;
+}
+
+/* ---------------- calendar ---------------- */
+function renderCalendar(v) {
+  const m = new Date(S.month.getFullYear(), S.month.getMonth(), 1);
+  const start = new Date(m); start.setDate(1 - ((m.getDay() + 6) % 7));
+  const todayKey = new Date().toDateString();
+  const byDay = {};
+  visiblePosts().forEach((p) => { if (!p.scheduled_at) return; const k = new Date(p.scheduled_at).toDateString(); (byDay[k] = byDay[k] || []).push(p); });
+  let cells = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => `<div class="dow">${d}</div>`).join("");
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start); d.setDate(start.getDate() + i);
+    if (i === 35 && d.getMonth() !== m.getMonth()) break;
+    const k = d.toDateString(), list = (byDay[k] || []).sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at));
+    cells += `<div class="day ${d.getMonth() !== m.getMonth() ? "out" : ""} ${k === todayKey ? "today" : ""}" data-date="${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}">
+      <span class="d">${d.getDate()}</span><span class="add">+</span>
+      ${list.slice(0, 4).map((p) => `<div class="chip ${p.status}" data-id="${p.id}" style="--c:${acctColor(acct(p.account_id))}">${thumbOf(p) ? `<img src="${esc(thumbOf(p))}" alt="">` : ""}<span class="t">${new Date(p.scheduled_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${esc(p.caption || TYPE_LBL[p.post_type])}</span></div>`).join("")}
+      ${list.length > 4 ? `<span class="small muted" style="padding:0 4px">+${list.length - 4} more</span>` : ""}
+    </div>`;
+  }
+  v.innerHTML = onboardingCard() + statsHtml() + `
+    <div class="calhead">
+      <button class="btn" id="pm">‹</button><h3>${m.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</h3><button class="btn" id="nm">›</button>
+      <button class="btn ghost" id="tm">Today</button>
+      <span class="small muted" style="margin-left:auto">Times shown in ${esc(TZ)}</span>
+    </div>
+    <div class="cal">${cells}</div>`;
+  $("#pm").onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() - 1, 1); renderView(); };
+  $("#nm").onclick = () => { S.month = new Date(m.getFullYear(), m.getMonth() + 1, 1); renderView(); };
+  $("#tm").onclick = () => { S.month = new Date(); renderView(); };
+  v.querySelectorAll(".chip").forEach((c) => c.onclick = (e) => { e.stopPropagation(); openComposer(S.posts.find((p) => p.id === c.dataset.id)); });
+  v.querySelectorAll(".day").forEach((d) => d.onclick = () => openComposer(null, d.dataset.date));
+}
+
+/* ---------------- queue ---------------- */
+function renderQueue(v) {
+  const ps = visiblePosts();
+  const groups = {
+    scheduled: ps.filter((p) => p.status === "scheduled" || p.status === "processing"),
+    draft: ps.filter((p) => p.status === "draft"),
+    published: ps.filter((p) => p.status === "published").sort((a, b) => new Date(b.published_at) - new Date(a.published_at)),
+    failed: ps.filter((p) => p.status === "failed"),
+  };
+  const names = { scheduled: "Scheduled", draft: "Drafts", published: "Published", failed: "Failed" };
+  const list = groups[S.qtab];
+  v.innerHTML = onboardingCard() + `<div class="tabs">${Object.keys(names).map((k) => `<button data-k="${k}" class="${S.qtab === k ? "on" : ""}">${names[k]}<span class="cnt">${groups[k].length}</span></button>`).join("")}</div>
+    <div class="list">${list.length ? list.map(rowHtml).join("") : `<div class="empty"><h3>Nothing here yet</h3>${S.qtab === "scheduled" ? "Schedule a post and it will show up here." : ""}</div>`}</div>`;
+  v.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => { S.qtab = b.dataset.k; renderView(); });
+  v.querySelectorAll("[data-act]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); rowAction(b.dataset.act, b.dataset.id, b); });
+  v.querySelectorAll(".row").forEach((r) => r.onclick = () => openComposer(S.posts.find((p) => p.id === r.dataset.id)));
+}
+function rowHtml(p) {
+  const a = acct(p.account_id), m = firstMedia(p);
+  const when = p.status === "published" ? "Published " + fmtDT(p.published_at) : p.scheduled_at ? fmtDT(p.scheduled_at) : "No date";
+  return `<div class="row" data-id="${p.id}" style="cursor:pointer">
+    <div class="thumbw">${m ? (m.kind === "video" && !m.thumb ? `<video class="thumb" src="${esc(m.url)}" muted preload="metadata"></video>` : `<img class="thumb" src="${esc(m.thumb || m.url)}" alt="">`) : `<div class="thumb"></div>`}${(p.media || []).length > 1 ? `<span class="badge">1/${p.media.length}</span>` : ""}</div>
+    <div style="min-width:0">
+      <div class="meta"><span class="dot" style="background:${acctColor(a)}"></span><b style="color:var(--ink)">@${esc(a?.username || "removed")}</b><span class="type">${TYPE_LBL[p.post_type]}</span><span class="pill ${p.status}">${p.status === "processing" ? "publishing…" : p.status}</span><span>${when}</span></div>
+      <div class="cap">${esc(p.caption) || '<span class="muted">No caption</span>'}</div>
+      ${p.error ? `<div class="err">⚠ ${esc(p.error)}</div>` : ""}
+    </div>
+    <div class="acts">
+      ${p.permalink ? `<a class="btn" href="${esc(p.permalink)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">View ↗</a>` : ""}
+      ${p.status !== "published" && p.status !== "processing" ? `<button class="btn" data-act="now" data-id="${p.id}">Publish now</button>` : ""}
+      <button class="btn" data-act="dup" data-id="${p.id}" title="Duplicate">⧉</button>
+      ${p.status !== "processing" ? `<button class="btn danger" data-act="del" data-id="${p.id}" title="Delete">🗑</button>` : ""}
+    </div></div>`;
+}
+async function rowAction(act, id, btn) {
+  const p = S.posts.find((x) => x.id === id);
+  if (act === "del") {
+    if (!confirm("Delete this post from the portal?" + (p.status === "published" ? " (It stays on Instagram.)" : ""))) return;
+    await sb.from("ig_posts").delete().eq("id", id);
+    S.posts = S.posts.filter((x) => x.id !== id); renderView(); toast("Deleted");
+  }
+  if (act === "dup") {
+    const { data, error } = await sb.from("ig_posts").insert({ account_id: p.account_id, post_type: p.post_type, caption: p.caption, first_comment: p.first_comment, media: p.media, status: "draft", scheduled_at: null }).select().single();
+    if (error) return toast(error.message, true);
+    S.posts.push(data); openComposer(data);
+  }
+  if (act === "now") publishNow(id, btn);
+}
+async function publishNow(id, btn) {
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin" style="border-color:#0002;border-top-color:#000"></span> Publishing'; }
+  try {
+    const r = await callFn({ action: "publish_now", post_id: id });
+    if (r.post.status === "published") toast("Published to Instagram ✓");
+    else if (r.post.status === "processing" || r.post.status === "scheduled") toast("Instagram is still processing the video. It will go live automatically in a minute or two.");
+    else toast("Failed: " + (r.post.error || "unknown error"), true);
+  } catch (e) { toast(e.message, true); }
+  await loadAll(); renderView();
+}
+
+/* ---------------- accounts ---------------- */
+function renderAccounts(v) {
+  v.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn ig" id="conn">+ Connect Instagram accounts</button>
+      <button class="btn" id="refresh">↻ Refresh stats</button>
+    </div>
+    ${S.accounts.length ? `<div class="grid-acc">${S.accounts.map((a) => {
+      const q = S.quotas[a.id];
+      const up = S.posts.filter((p) => p.account_id === a.id && p.status === "scheduled").length;
+      return `<div class="card">
+        <div class="acchead">${a.profile_picture_url ? `<img src="${esc(a.profile_picture_url)}">` : `<span class="av" style="width:52px;height:52px;background:var(--grad)"></span>`}
+          <div style="min-width:0;flex:1"><b>@${esc(a.username)}</b><div class="small muted">${esc(a.name || "")} · Page: ${esc(a.page_name || "—")}</div></div></div>
+        <div class="nums"><div><b>${fmtN(a.followers_count)}</b><span>followers</span></div><div><b>${fmtN(a.media_count)}</b><span>posts</span></div><div><b>${up}</b><span>scheduled</span></div>${q ? `<div><b>${q.quota_usage}/${q.config?.quota_total || 100}</b><span>API posts 24h</span></div>` : ""}</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span class="small muted">Label colour</span>
+          ${COLORS.map((c) => `<button data-color="${c}" data-id="${a.id}" style="width:18px;height:18px;border-radius:50%;border:2px solid ${a.color === c ? "#000" : "transparent"};background:${c}"></button>`).join("")}
+        </div>
+        <div style="display:flex;gap:6px;margin-top:12px">
+          <button class="btn" data-recent="${a.id}">Recent posts</button>
+          <button class="btn" data-new="${a.id}">+ Post</button>
+          <button class="btn danger" data-rm="${a.id}" style="margin-left:auto">Disconnect</button>
+        </div>
+        <div class="igrid" id="ig-${a.id}"></div>
+      </div>`;
+    }).join("")}</div>` : `<div class="empty"><h3>No Instagram accounts connected</h3><p>Click <b>Connect Instagram accounts</b>, log in with the Facebook profile that manages your clients' Pages, and select every Page/Instagram account you want here. All of them are added in one go.</p></div>`}
+    <p class="small muted" style="margin-top:16px">To add more accounts later, click Connect again and tick the extra Pages. Existing accounts stay connected.</p>`;
+  $("#conn").onclick = connectInstagram;
+  $("#refresh").onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = "Refreshing…";
+    try {
+      const r = await callFn({ action: "refresh_accounts" });
+      r.accounts.forEach((x) => { if (x.quota) S.quotas[x.id] = x.quota; });
+      const bad = r.accounts.filter((x) => !x.ok);
+      if (bad.length) toast(`${bad.length} account(s) need reconnecting: ${bad[0].error}`, true); else toast("Stats updated");
+    } catch (err) { toast(err.message, true); }
+    await loadAll(); render();
+  };
+  v.querySelectorAll("[data-color]").forEach((b) => b.onclick = async () => {
+    await sb.from("ig_accounts").update({ color: b.dataset.color }).eq("id", b.dataset.id);
+    acct(b.dataset.id).color = b.dataset.color; render();
+  });
+  v.querySelectorAll("[data-new]").forEach((b) => b.onclick = () => openComposer(null, null, b.dataset.new));
+  v.querySelectorAll("[data-rm]").forEach((b) => b.onclick = async () => {
+    if (!confirm("Disconnect this account? Its scheduled posts in the portal are deleted too.")) return;
+    const { error } = await sb.from("ig_accounts").delete().eq("id", b.dataset.rm);
+    if (error) return toast(error.message, true);
+    await loadAll(); render(); toast("Disconnected");
+  });
+  v.querySelectorAll("[data-recent]").forEach((b) => b.onclick = async () => {
+    const box = $("#ig-" + b.dataset.recent); box.innerHTML = '<span class="small muted">Loading…</span>';
+    try {
+      const r = await callFn({ action: "recent_media", account_id: b.dataset.recent });
+      box.innerHTML = r.media.map((m) => `<a href="${esc(m.permalink)}" target="_blank" rel="noopener" title="♥ ${m.like_count ?? 0} · 💬 ${m.comments_count ?? 0}" style="background-image:url('${esc(m.thumbnail_url || m.media_url)}')"></a>`).join("") || '<span class="small muted">No posts yet</span>';
+    } catch (e) { box.innerHTML = `<span class="small" style="color:var(--bad)">${esc(e.message)}</span>`; }
+  });
+}
+
+/* ---------------- settings ---------------- */
+function renderSettings(v) {
+  v.innerHTML = `<div class="two">
+    <div class="card">
+      <h3 style="margin-top:0">One-time setup: your Meta app</h3>
+      <ol class="steps" style="padding:0;margin:0">
+        <li><div>Go to <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener"><b>developers.facebook.com/apps</b></a> → <b>Create app</b>. Choose the <b>Other</b> use case → app type <b>Business</b>, and connect it to your Business portfolio.</div></li>
+        <li><div>In the app dashboard, add the products <b>Facebook Login for Business</b> and <b>Instagram</b> (choose <i>API setup with Facebook login</i>).</div></li>
+        <li><div>Open <b>Facebook Login for Business → Settings</b> and paste this into <b>Valid OAuth Redirect URIs</b>, then save:
+          <div class="copyrow" style="margin-top:6px"><input class="inp" readonly value="${REDIRECT_URI}" id="ru"><button class="btn" onclick="navigator.clipboard.writeText($('#ru').value);toast('Copied')">Copy</button></div></div></li>
+        <li><div>Go to <b>App settings → Basic</b>. Add <code>${esc(location.hostname || "your-portal-domain")}</code> under <b>App domains</b>, set a Privacy Policy URL, then copy the <b>App ID</b> and <b>App Secret</b> into the form on the right.</div></li>
+        <li><div>While the app is in <b>Development</b> mode it works for you as the app admin, with every Page you manage. Make sure each client's Instagram is a <b>Business/Creator</b> account linked to a Facebook Page where you have full control.</div></li>
+        <li><div>Click <b>Connect Instagram</b>, log in, and tick <b>all</b> the Pages and Instagram accounts you want. Done.</div></li>
+      </ol>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <form class="card" id="cfgForm" style="display:flex;flex-direction:column;gap:12px">
+        <h3 style="margin:0">Meta app credentials ${S.config ? '<span class="pill published" style="vertical-align:middle">Saved</span>' : ""}</h3>
+        <div class="field"><label>App ID</label><input class="inp" id="appId" required value="${esc(S.config?.app_id || DEFAULT_APP_ID)}" placeholder="e.g. 1234567890123456"></div>
+        <div class="field"><label>Login configuration ID</label><input class="inp" id="cfgId" value="${esc(S.config?.config_id || DEFAULT_CONFIG_ID)}" placeholder="From Facebook Login for Business → Configurations"></div>
+        <div class="field"><label>App Secret</label><input class="inp" id="appSecret" type="password" ${S.config ? "" : "required"} placeholder="${S.config ? "•••••••• (saved — leave blank to keep)" : "Paste your app secret"}"></div>
+        <div style="display:flex;gap:8px"><button class="btn pri" type="submit">Save</button>${S.config ? '<button class="btn ig" type="button" onclick="connectInstagram()">Connect Instagram</button>' : ""}</div>
+        <p class="small muted" style="margin:0">Stored in your private database and only used by your server to log in with Facebook.</p>
+      </form>
+      <div class="card">
+        <h3 style="margin-top:0">How publishing works</h3>
+        <p class="muted" style="line-height:1.6;margin:0">A background job checks every minute and publishes anything that is due, so your computer can be off. Images are converted to JPEG automatically (Instagram's requirement). Reels and video stories take Instagram a minute or two to process before they go live. Instagram allows about 100 API posts per account per 24 hours.</p>
+        <p class="small muted" style="margin-bottom:0">Times use your device's timezone: <b>${esc(TZ)}</b>.</p>
+      </div>
+    </div></div>`;
+  $("#cfgForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const app_id = $("#appId").value.trim(), app_secret = $("#appSecret").value.trim(), config_id = $("#cfgId").value.trim() || null;
+    let r;
+    if (S.config && !app_secret) r = await sb.from("ig_app_config").update({ app_id, config_id, updated_at: new Date().toISOString() }).eq("owner_id", S.user.id);
+    else r = await sb.from("ig_app_config").upsert({ owner_id: S.user.id, app_id, app_secret, config_id, updated_at: new Date().toISOString() });
+    if (r.error) return toast(r.error.message.includes("row-level") ? "This account isn't allowed to use the portal." : r.error.message, true);
+    S.config = { app_id, config_id }; toast("Saved"); render();
+  };
+}
+
+/* ---------------- composer ---------------- */
+const C = { post: null, type: "image", media: [], accounts: [] };
+const LIMITS = { image: 1, carousel: 10, reel: 1, story: 1 };
+
+function openComposer(post = null, date = null, accountId = null) {
+  if (!S.accounts.length) { toast("Connect an Instagram account first", true); S.view = S.config ? "accounts" : "settings"; return render(); }
+  C.post = post;
+  C.type = post?.post_type || "image";
+  C.media = (post?.media || []).map((m) => ({ ...m }));
+  C.accounts = post ? [post.account_id] : [accountId || (S.filter !== "all" ? S.filter : S.accounts[0].id)];
+  $("#cTitle").textContent = post ? (post.status === "published" ? "Published post" : "Edit post") : "New post";
+  $("#caption").value = post?.caption || "";
+  $("#firstComment").value = post?.first_comment || "";
+  let d = post?.scheduled_at ? new Date(post.scheduled_at) : null;
+  if (!d) { d = date ? new Date(date + "T19:00") : new Date(Date.now() + 3600e3); if (!date) d.setMinutes(0); }
+  $("#cDate").value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  $("#cTime").value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  $("#tzLbl").textContent = "· " + TZ;
+  const locked = post?.status === "published" || post?.status === "processing";
+  ["#cDraft", "#cNow", "#cSchedule"].forEach((s) => $(s).classList.toggle("hidden", locked));
+  $("#cDelete").classList.toggle("hidden", !post || post.status === "processing");
+  $("#cSchedule").textContent = post?.status === "scheduled" ? "Update schedule" : "Schedule";
+  renderComposer();
+  $("#composer").classList.remove("hidden");
+}
+function closeComposer() { $("#composer").classList.add("hidden"); renderView(); }
+$("#cClose").onclick = closeComposer;
+$("#composer").onclick = (e) => { if (e.target.id === "composer") closeComposer(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#composer").classList.contains("hidden")) closeComposer(); });
+
+function renderComposer() {
+  const multi = !C.post;
+  $("#cAccts").innerHTML = S.accounts.map((a) => `<label title="${multi ? "Select several to post to multiple accounts" : ""}"><input type="${multi ? "checkbox" : "radio"}" name="ca" value="${a.id}" ${C.accounts.includes(a.id) ? "checked" : ""}>${avatar(a)}@${esc(a.username)}</label>`).join("");
+  $("#cAccts").querySelectorAll("input").forEach((i) => i.onchange = () => {
+    C.accounts = [...$("#cAccts").querySelectorAll("input:checked")].map((x) => x.value);
+    renderPreview();
+  });
+  $("#cType").querySelectorAll("button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.t === C.type);
+    b.onclick = () => { C.type = b.dataset.t; if (C.media.length > LIMITS[C.type]) C.media = C.media.slice(0, LIMITS[C.type]); renderComposer(); };
+  });
+  const hints = { image: "1 image · JPG/PNG · ratio 4:5 to 1.91:1 (auto-fitted)", carousel: "2–10 images or videos · first item sets the crop", reel: "1 video · MP4 · 9:16 · 3 sec – 15 min", story: "1 image or video (≤60s) · 9:16" };
+  $("#dropHint").textContent = hints[C.type];
+  $("#mLabel").textContent = `Media (${C.media.length}/${LIMITS[C.type]})`;
+  $("#capField").classList.toggle("hidden", C.type === "story");
+  $("#fcField").classList.toggle("hidden", C.type === "story");
+  $("#mlist").innerHTML = C.media.map((m, i) => `<div class="mitem">
+      ${m.kind === "video" ? `<video src="${esc(m.url || m.local)}" muted></video>` : `<img src="${esc(m.url || m.local)}">`}
+      ${m.uploading ? `<div class="up">Uploading…</div>` : ""}
+      <button class="x" data-rm="${i}">✕</button>
+      ${C.type === "carousel" && C.media.length > 1 ? `<div class="mv">${i > 0 ? `<button data-l="${i}">‹</button>` : ""}${i < C.media.length - 1 ? `<button data-r="${i}">›</button>` : ""}</div>` : ""}
+    </div>`).join("");
+  $("#mlist").querySelectorAll("[data-rm]").forEach((b) => b.onclick = () => { C.media.splice(+b.dataset.rm, 1); renderComposer(); });
+  $("#mlist").querySelectorAll("[data-l]").forEach((b) => b.onclick = () => { const i = +b.dataset.l; [C.media[i - 1], C.media[i]] = [C.media[i], C.media[i - 1]]; renderComposer(); });
+  $("#mlist").querySelectorAll("[data-r]").forEach((b) => b.onclick = () => { const i = +b.dataset.r; [C.media[i + 1], C.media[i]] = [C.media[i], C.media[i + 1]]; renderComposer(); });
+  $("#drop").classList.toggle("hidden", C.media.length >= LIMITS[C.type]);
+  $("#mwarn").innerHTML = mediaWarnings().map((w) => `<div class="warn" style="margin-top:6px">${w}</div>`).join("");
+  // quick picks
+  const qs = [["Tonight 9 PM", () => at(0, 21)], ["Tomorrow 1 PM", () => at(1, 13)], ["Tomorrow 8 PM", () => at(1, 20)], ["In 1 hour", () => new Date(Date.now() + 3600e3)]];
+  $("#quick").innerHTML = qs.map((q, i) => `<button data-q="${i}">${q[0]}</button>`).join("");
+  $("#quick").querySelectorAll("button").forEach((b) => b.onclick = () => { const d = qs[+b.dataset.q][1](); setWhen(d); });
+  updateCounts(); renderPreview();
+}
+function at(addDays, h) { const d = new Date(); d.setDate(d.getDate() + addDays); d.setHours(h, 0, 0, 0); if (d < new Date()) d.setDate(d.getDate() + 1); return d; }
+function setWhen(d) {
+  $("#cDate").value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  $("#cTime").value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+function mediaWarnings() {
+  const w = [];
+  const vids = C.media.filter((m) => m.kind === "video"), imgs = C.media.filter((m) => m.kind === "image");
+  if (C.type === "reel" && imgs.length) w.push("Reels need a video. Remove the image or switch the format to Post.");
+  if (C.type === "image" && vids.length) w.push("For a single video, choose <b>Reel</b> as the format.");
+  if (C.type === "carousel" && C.media.length === 1) w.push("Carousels need at least 2 items.");
+  vids.forEach((v) => {
+    if (v.duration && C.type === "reel" && (v.duration < 3 || v.duration > 900)) w.push(`Reel length is ${Math.round(v.duration)}s; Instagram needs 3 sec – 15 min.`);
+    if (v.duration && C.type === "story" && v.duration > 60) w.push(`Story video is ${Math.round(v.duration)}s; Instagram stories max 60s.`);
+    if (v.size > 300 * 1048576) w.push("Video is over 300 MB. Please compress it.");
+  });
+  return w;
+}
+function updateCounts() {
+  const t = $("#caption").value;
+  const tags = (t.match(/#[\p{L}\p{N}_]+/gu) || []).length + (($("#firstComment").value.match(/#[\p{L}\p{N}_]+/gu)) || []).length;
+  $("#charCnt").textContent = `${t.length} / 2200`; $("#charCnt").className = t.length > 2200 ? "over" : "";
+  $("#hashCnt").textContent = `${tags} / 30 hashtags`; $("#hashCnt").className = tags > 30 ? "over" : "";
+}
+$("#caption").oninput = () => { updateCounts(); renderPreview(); };
+$("#firstComment").oninput = updateCounts;
+
+let pvIndex = 0;
+function renderPreview() {
+  const a = acct(C.accounts[0]);
+  $("#pvHead").innerHTML = `${a?.profile_picture_url ? `<img src="${esc(a.profile_picture_url)}">` : '<span class="av"></span>'}<span>${esc(a?.username || "your_account")}</span>`;
+  const tall = C.type === "reel" || C.type === "story";
+  const box = $("#pvMedia"); box.className = "pvm" + (tall ? " tall" : "");
+  if (pvIndex >= C.media.length) pvIndex = 0;
+  const m = C.media[pvIndex];
+  if (m) {
+    const src = esc(m.url || m.local);
+    box.innerHTML = (m.kind === "video" ? `<video src="${src}" muted autoplay loop playsinline></video>` : `<img src="${src}">`) +
+      (C.media.length > 1 ? `<div class="dots">${C.media.map((_, i) => `<i class="${i === pvIndex ? "on" : ""}"></i>`).join("")}</div>` : "");
+    box.onclick = () => { if (C.media.length > 1) { pvIndex = (pvIndex + 1) % C.media.length; renderPreview(); } };
+  } else { box.innerHTML = "Add media to preview"; box.onclick = null; }
+  $("#pvBelow").classList.toggle("hidden", C.type === "story");
+  const cap = esc($("#caption").value).replace(/(#[\p{L}\p{N}_]+|@[\w.]+)/gu, '<span class="h">$1</span>');
+  $("#pvCap").innerHTML = `<b>${esc(a?.username || "your_account")}</b>${cap}`;
+}
+
+/* media upload */
+const drop = $("#drop"), fileIn = $("#file");
+drop.onclick = () => fileIn.click();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); addFiles([...e.dataTransfer.files]); };
+fileIn.onchange = () => { addFiles([...fileIn.files]); fileIn.value = ""; };
+
+async function addFiles(files) {
+  const room = LIMITS[C.type] - C.media.length;
+  if (files.length > room) toast(`Only ${room} more item(s) allowed for this format`, true);
+  files = files.slice(0, room);
+  if (C.type === "image" && files[0]?.type.startsWith("video/")) { C.type = "reel"; toast("Switched format to Reel for your video"); }
+  for (const f of files) {
+    const kind = f.type.startsWith("video/") ? "video" : "image";
+    const item = { kind, local: URL.createObjectURL(f), uploading: true, size: f.size };
+    C.media.push(item); renderComposer();
+    try {
+      let blob = f, ext = (f.name.split(".").pop() || "mp4").toLowerCase();
+      if (kind === "image") { blob = await toInstagramJpeg(f, C.type); ext = "jpg"; }
+      else item.duration = await videoDuration(item.local);
+      const path = `${S.user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await sb.storage.from("ig-media").upload(path, blob, { contentType: kind === "image" ? "image/jpeg" : (f.type || "video/mp4"), upsert: false });
+      if (error) throw error;
+      item.url = sb.storage.from("ig-media").getPublicUrl(path).data.publicUrl;
+      item.path = path;
+      if (kind === "video") item.thumb = await videoThumb(item.local, path).catch(() => null);
+      item.uploading = false;
+    } catch (e) {
+      toast("Upload failed: " + e.message, true);
+      C.media.splice(C.media.indexOf(item), 1);
+    }
+    renderComposer();
+  }
+}
+function loadImg(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+async function toInstagramJpeg(file, type) {
+  const img = await loadImg(URL.createObjectURL(file));
+  let w = img.naturalWidth, h = img.naturalHeight, r = w / h;
+  let target = r;
+  if (type === "story") target = 9 / 16;
+  else if (type === "carousel" && C.media.length > 1 && C.media[0].ratio) target = C.media[0].ratio;
+  else if (r < 0.8) target = 0.8; else if (r > 1.91) target = 1.91;
+  const maxW = 1440;
+  let cw, ch;
+  if (target > r) { ch = h; cw = Math.round(h * target); } else { cw = w; ch = Math.round(w / target); }
+  const scale = Math.min(1, maxW / cw);
+  cw = Math.round(cw * scale); ch = Math.round(ch * scale);
+  const cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+  const x = cv.getContext("2d");
+  if (Math.abs(target - r) > 0.01) {
+    // blurred fill behind letterboxed image
+    x.filter = "blur(40px) brightness(.85)";
+    const s = Math.max(cw / w, ch / h);
+    x.drawImage(img, (cw - w * s) / 2, (ch - h * s) / 2, w * s, h * s);
+    x.filter = "none";
+  }
+  const s2 = Math.min(cw / w, ch / h);
+  x.drawImage(img, (cw - w * s2) / 2, (ch - h * s2) / 2, w * s2, h * s2);
+  C.media[C.media.length - 1].ratio = cw / ch;
+  return await new Promise((res) => cv.toBlob(res, "image/jpeg", 0.92));
+}
+function videoDuration(src) { return new Promise((res) => { const v = document.createElement("video"); v.preload = "metadata"; v.onloadedmetadata = () => res(v.duration); v.onerror = () => res(null); v.src = src; }); }
+async function videoThumb(src, path) {
+  const v = document.createElement("video"); v.muted = true; v.src = src; v.crossOrigin = "anonymous";
+  await new Promise((r, j) => { v.onloadeddata = r; v.onerror = j; });
+  v.currentTime = Math.min(1, v.duration / 2);
+  await new Promise((r) => v.onseeked = r);
+  const cv = document.createElement("canvas"); cv.width = 360; cv.height = Math.round(360 * v.videoHeight / v.videoWidth);
+  cv.getContext("2d").drawImage(v, 0, 0, cv.width, cv.height);
+  const blob = await new Promise((r) => cv.toBlob(r, "image/jpeg", 0.8));
+  const tp = path.replace(/\.\w+$/, "-thumb.jpg");
+  await sb.storage.from("ig-media").upload(tp, blob, { contentType: "image/jpeg" });
+  return sb.storage.from("ig-media").getPublicUrl(tp).data.publicUrl;
+}
+
+/* save */
+function validate(forSchedule) {
+  if (!C.accounts.length) return "Pick at least one account.";
+  if (C.media.some((m) => m.uploading)) return "Wait for uploads to finish.";
+  if (!forSchedule) return null;
+  if (!C.media.length) return "Add media first.";
+  const w = mediaWarnings(); if (w.length && !w[0].includes("MB")) return w[0].replace(/<[^>]+>/g, "");
+  if ($("#caption").value.length > 2200) return "Caption is over 2,200 characters.";
+  return null;
+}
+function whenISO() { return new Date(`${$("#cDate").value}T${$("#cTime").value}`).toISOString(); }
+async function save(status) {
+  const err = validate(status !== "draft"); if (err) return toast(err, true), null;
+  const scheduled_at = whenISO();
+  if (status === "scheduled" && new Date(scheduled_at) < Date.now() - 60000) return toast("That time is in the past. Use Publish now instead.", true), null;
+  const base = {
+    post_type: C.type, caption: C.type === "story" ? "" : $("#caption").value, first_comment: C.type === "story" ? "" : $("#firstComment").value,
+    media: C.media.map(({ kind, url, path, thumb, ratio, duration }) => ({ kind, url, path, thumb, ratio, duration })),
+    scheduled_at, status, error: null, container_id: null, children: null, attempts: 0,
+  };
+  let rows;
+  if (C.post) {
+    const r = await sb.from("ig_posts").update({ ...base, account_id: C.accounts[0] }).eq("id", C.post.id).select();
+    if (r.error) return toast(r.error.message, true), null;
+    rows = r.data;
+  } else {
+    const r = await sb.from("ig_posts").insert(C.accounts.map((id) => ({ ...base, account_id: id }))).select();
+    if (r.error) return toast(r.error.message, true), null;
+    rows = r.data;
+  }
+  await loadAll();
+  return rows;
+}
+$("#cDraft").onclick = async () => { if (await save("draft")) { toast("Draft saved"); closeComposer(); } };
+$("#cSchedule").onclick = async () => {
+  const b = $("#cSchedule"); b.disabled = true;
+  const rows = await save("scheduled"); b.disabled = false;
+  if (rows) { toast(`Scheduled ${rows.length > 1 ? rows.length + " posts " : ""}for ${fmtDT(rows[0].scheduled_at)}`); closeComposer(); }
+};
+$("#cNow").onclick = async () => {
+  const b = $("#cNow"); b.disabled = true; b.innerHTML = '<span class="spin" style="border-color:#0002;border-top-color:#000"></span> Publishing';
+  const rows = await save("draft");
+  if (rows) { for (const r of rows) await publishNow(r.id); closeComposer(); }
+  b.disabled = false; b.textContent = "Publish now";
+};
+$("#cDelete").onclick = async () => {
+  if (!C.post || !confirm("Delete this post?")) return;
+  await sb.from("ig_posts").delete().eq("id", C.post.id);
+  await loadAll(); toast("Deleted"); closeComposer();
+};
+
+/* init */
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { $("#auth").classList.remove("hidden"); }
+})();
+</script>
+</body>
+</html>
